@@ -1,10 +1,11 @@
 #!/bin/sh
 
-device=/dev/ttyACM1		# default modem character device file
+device=/dev/ttyACM1		# default modem tty device character file
 userhost=root@192.168.1.1	# default ssh user@host
 prefix='RSSIding: '		# prefix for rssi debug messages
-dev_timeout=29			# timeout if modem char dev file not exist
-usage="RSSIding by Radek Daniluk\n
+delay=1				# AT commands loop delay
+dev_delay=2			# wait for device loop delay
+info_msg="RSSIding by Radek Daniluk\n
 Usage: rssiding [ [user@host] device]
   user@host: ssh connection argument, default: '$userhost'
   device   : path to character device file for modem communication,
@@ -12,7 +13,7 @@ Usage: rssiding [ [user@host] device]
 
 
 if [ $# -gt 2 ]; then
-  printf "$usage"
+  printf "$info_msg"
   exit 1
 fi
 
@@ -23,28 +24,37 @@ elif [ $# -eq 1 ]; then
   device="$1"
 fi
 
-printf "%smodem character device set to: '%s'\n%suser@host set to: '%s'\n" \
+printf "%smodem tty device set to: '%s'\n%suser@host set to: '%s'\n" \
 "$prefix" "$device" "$prefix" "$userhost"
 
 ssh "$userhost" -T << EOF
 printf "%sConnected to '%s'\n" "$prefix" "$userhost"
-printf "%sWaiting for '%s'.." "$prefix" "$device"
 
-i=0		# variable declaration inside here document!
-until [ -c "$device" ];
-do
+while true; do
+  if [ -c $device ]; then	# if device appeard
+    printf "\n%sDevice '%s' found. Proceeding.\n" "$prefix" "$device"
+    #lock
+    #chat init.chat <$device >$device	# send initial AT commands
+    # parse and precess init AT commands
+    #unlock
 
-  i=\$(( \$i + 1 )) # modify i variable inside here document
-  if [ "\$i" -gt "$dev_timeout" ]; then
-    printf "\n%sDevice '%s' not found for %s seconds. Exiting.\n" \
-      "$prefix" "$device" "$dev_timeout"
-    exit 2
+    while [ -c "$device" ]; do		# device is still there
+      date '+%R:%S'
+      #lock
+      #chat info.chat	# send AT commands to obtain RSSI and BTS CID
+      #unlock
+      #parse and process AT commands
+      sleep "$delay"
+    done;
+  else 		# if there is no device or it disappeard
+    printf "%sDevice '%s' not found. Waiting." "$prefix" "$device"
+    until [ -c "$device" ]; do 		# still no device
+      date '+%R:%S'
+      printf "."
+      sleep "$dev_delay"
+    done;
   fi
-  printf "."; sleep 1;
 done;
-
-
-printf "\n%sDevice '%s' found. Proceeding.\n" "$prefix" "$device"
 
 EOF
 
