@@ -33,23 +33,28 @@ printf "%sConnected to '%s'\n" "$prefix" "$userhost"
 while true; do
   if [ -c $device ]; then	# if device appeard
     printf "\n%sDevice '%s' found. Proceeding.\n" "$prefix" "$device"
-    #lock
-    #chat init.chat <$device >$device	# send initial AT commands
-    # parse and precess init AT commands
-    #unlock
+    # TODO lock device 
+    chat -e -t 5 ABORT ERROR '' AT+CREG=2 OK \
+       <$device 2>&1 1>$device | grep -v ^$ 
+    if [ \$? -ne 0 ]; then		 # check chat exit status
+      printf "%sChat init problem. Aborting." "$prefix"
+      exit 4
+    fi
+    # TODO unlock device
 
     while [ -c "$device" ]; do		# device is still there
       date '+%R:%S'
-      #lock
+      # TODO lock
+      chat -e -t 2 ABORT ERROR '' AT+CSQ OK AT+CREG? OK \
+       <$device 2>&1 1>$device | grep -v ^$	 # ask for RSSI and BTS
       #chat info.chat	# send AT commands to obtain RSSI and BTS CID
-      #unlock
-      #parse and process AT commands
+      # TODO unlock
+      # TODO parse and process AT commands
       sleep "$delay"
     done;
   else 		# if there is no device or it disappeard
     printf "%sDevice '%s' not found. Waiting." "$prefix" "$device"
     until [ -c "$device" ]; do 		# still no device
-      date '+%R:%S'
       printf "."
       sleep "$dev_delay"
     done;
