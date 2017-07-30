@@ -5,6 +5,7 @@ userhost=root@192.168.1.1	# default ssh user@host
 prefix='RSSIding: '		# prefix for rssi debug messages
 delay=1				# AT commands loop delay
 dev_delay=2			# wait for device loop delay
+tmp_file=/tmp/rssiding.tmp	# temporary file for AT commands
 info_msg="RSSIding by Radek Daniluk\n
 Usage: rssiding [ [user@host] device]
   user@host: ssh connection argument, default: '$userhost'
@@ -27,7 +28,7 @@ fi
 printf "%smodem tty device set to: '%s'\n%suser@host set to: '%s'\n" \
 "$prefix" "$device" "$prefix" "$userhost"
 
-ssh "$userhost" -T << EOF
+ssh "$userhost" -t << EOF
 printf "%sConnected to '%s'\n" "$prefix" "$userhost"
 
 while true; do
@@ -44,11 +45,17 @@ while true; do
     # TODO unlock device
 
     while [ -c "$device" ]; do		# device is still there
-      echo; date '+%R:%S' 	# print new line and time
+      date '+%R:%S' 	# print time
       # TODO lock
       # send AT commands asking for RSSI and registration status
+      # and save answer to temp file
       chat -e -t 2 ABORT ERROR '' AT+CSQ OK AT+CREG? OK \
-        <$device 2>&1 1>$device | grep -vE "^($|OK|AT\+C)"
+        <$device 2>$tmp_file 1>$device
+      #parse AT commands and ding suitable sound on local host
+      sed -i -E '/^($|OK|AT\+C)/ d' $tmp_file
+      cat $tmp_file
+      RSSI=\$(awk -F "[ ,]" '/^\+CSQ:/ { print \$2 }' $tmp_file)
+      echo play -n synth 0.5 sin %\`expr \$((\$RSSI-10))\`
       # TODO unlock
       # TODO parse and process AT commands
       sleep "$delay"
