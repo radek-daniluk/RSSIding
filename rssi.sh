@@ -94,7 +94,11 @@ if : ; then # TODO
         sed -i -E '/^$/ d' $tmp_file
         cat $tmp_file
         #RSSI=$(awk -F "[ ,]" '/^\+CSQ:/ { print $2 }' $tmp_file)
-        sleep "$delay"
+        if [ "$delay" -ne 0 ]; then
+          sleep "$delay"
+        else
+          exit 0
+        fi
       done;
     else          # if there is no device or it disappeard
       printf "Device '%s' not found. Waiting." "$device"
