@@ -5,27 +5,61 @@ delay=1                         # AT commands loop delay
 dev_delay=2                     # wait for device loop delay
 lock_dir=/tmp/rssi.lock		# lock directory (one instance of script)
 tmp_file=/tmp/rssi.tmp		# temporary file for AT commands
+print_full_chat=0
 
 info_msg="rssi by Radek Daniluk\n
-Usage: rssi [device [delay]]
+Usage: rssi [device [delay [full_chat]]]
   device	: path to character device file for modem communication,
-    e.g. '/dev/ttyUSB1', default: '$device'
-  delay		: AT commands loop delay in seconds; default: '$delay'\n"
+		  must start from '/dev/tty'
+		  e.g. '/dev/ttyUSB1', default: '$device'
+  delay		: AT commands loop delay in seconds; default: '$delay'
+		  maximum delay time: '99'
+		  if set to 0 script prints info once and exits
+  full_chat	: if set to 0 print pretty info, otherwise print full modem
+		  chat, default: $print_full_chat\n"
 
-if [ $# -gt 2 ]; then		# too many args
+if [ $# -gt 3 ]; then		# too many args
   printf "$info_msg"
   exit 1
 fi
 
-if [ $# -gt 1 ]; then
-  device="$1"
-  delay="$2"
-elif [ $# -eq 1 ]; then
-  device="$1"
+# 'case' unlike 'if test' do not execute backtick commands passed by arguments
+# (set argument to "`ls`" and you will see difference)
+# for safety reasons using case
+
+if [ $# -gt 2 ]; then 		# prcoess 3rd argument
+  case $1 in
+  1) print_full_chat=1;;
+  *) print_full_chat=0;;
+  esac
 fi
 
-printf "modem tty device set to: '%s'\nLoop delay set to: '%s'\n" \
-"$device" "$delay"
+if [ $# -gt 1 ]; then		# process 2nd argument
+  case $2 in
+    [0-9]|[0-9][0-9])		# number 0-99
+      delay="$2" ;;
+    *)
+      echo Bad delay argument format
+      printf "$info_msg"
+      exit 1 ;;
+  esac
+fi
+
+if [ $# -gt 0 ]; then		# process 1st argument
+  case $1 in
+    /dev/tty?*)
+      device="$1";;
+    *)
+      echo Bad device argument format
+      printf "$info_msg"
+      exit 1 ;;
+  esac
+fi
+
+printf "modem tty device set to: '%s'
+Loop delay set to: %ss
+print_full_chat: '%s'\n" \
+"$device" "$delay" "$print_full_chat"
 
 # set exclusive lock
 if true; then # TODO
