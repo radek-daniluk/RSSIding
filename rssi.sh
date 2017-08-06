@@ -62,13 +62,13 @@ print_full_chat: '%s'\n" \
 "$device" "$delay" "$print_full_chat"
 
 # set exclusive lock
-if true; then # TODO
+if : ; then # TODO
 
   echo >&2 "successfully acquired lock"
   # Remove lockdir when the script finishes, or when it receives a signal
   trap 'rm -rf "$lockdir"' 0    # remove directory when script finishes
 
-  while true; do
+  while : ; do
     if [ -c $device ]; then       # if device appeard
       printf "\nDevice '%s' found. Proceeding.\n" "$device"
 
