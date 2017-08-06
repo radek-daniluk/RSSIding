@@ -28,7 +28,7 @@ fi
 # for safety reasons using case
 
 if [ $# -gt 2 ]; then 		# prcoess 3rd argument
-  case $1 in
+  case $3 in
   1) print_full_chat=1;;
   *) print_full_chat=0;;
   esac
@@ -73,15 +73,18 @@ if : ; then # TODO
       printf "\nDevice '%s' found. Proceeding.\n" "$device"
 
       # send initial AT commands to modem device
-      chat -e -t 5 ABORT ERROR '' AT+CREG=2 OK <$device 2>&1 1>$device \
-        | grep -v ^$			# remove empty lines
-      if [ $? -ne 0 ]; then               # check chat exit status
+      chat -e -t 5 ABORT ERROR '' AT+CREG=2 OK <$device 2>$tmp_file 1>$device
+      if [ $? -ne 0 ]; then		# check chat exit status
         printf "Chat init error. Aborting.\n"
         exit 4
+      else
+        if [ "$print_full_chat" -eq 1 ]; then
+          sed -i -E '/^$/ d' $tmp_file	# remove empty lines
+          cat "$tmp_file"
+        fi
       fi
 
       while [ -c "$device" ]; do          # device is still there
-        date '+%R:%S'     # print time
         # send AT commands asking for RSSI and registration status
         # and save answer to temp file
         chat -e -t 2 ABORT ERROR '' AT+CSQ OK AT+CREG? OK \
@@ -90,10 +93,20 @@ if : ; then # TODO
           echo chat error > $tmp_file
         fi
 
-        #parse AT commands and remove empty lines from temporary file
+        # parse AT commands and remove empty lines from temporary file
         sed -i -E '/^$/ d' $tmp_file
-        cat $tmp_file
-        #RSSI=$(awk -F "[ ,]" '/^\+CSQ:/ { print $2 }' $tmp_file)
+
+        # print result
+        if [ "$print_full_chat" -eq 1 ]; then
+          date '+%R:%S'
+          cat $tmp_file
+        else
+          date '+%R:%S' | tr -d '\n' # print date without newline
+          RSSI=$(awk -F "[ ,]" '/^\+CSQ:/ { print $2 }' $tmp_file)
+          BTS_CI=$(awk -F "[ ,]" '/^\+CREG:/ { print $5 }' $tmp_file)
+          printf " RSSI=%s BTS_CI=%s\n" "$RSSI" "$BTS_CI"
+        fi
+
         if [ "$delay" -ne 0 ]; then
           sleep "$delay"
         else
