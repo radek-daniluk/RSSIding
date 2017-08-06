@@ -1,10 +1,10 @@
 #!/bin/sh
 
-device=/dev/ttyACM1             # default modem tty device character file
-delay=1                         # AT commands loop delay
-dev_delay=2                     # wait for device loop delay
-lock_dir=/tmp/rssi.lock		# lock directory (one instance of script)
-tmp_file=/tmp/rssi.tmp		# temporary file for AT commands
+device=/dev/ttyACM1     # default modem tty device character file
+delay=1                 # AT commands loop delay
+dev_delay=2             # wait for device loop delay
+lockfile=/tmp/rssi.lock	# lock file to execuete only one instance of the script)
+tmp_file=/tmp/rssi.tmp	# temporary file for AT commands
 print_full_chat=0
 
 info_msg="rssi by Radek Daniluk\n
@@ -62,11 +62,12 @@ print_full_chat: '%s'\n" \
 "$device" "$delay" "$print_full_chat"
 
 # set exclusive lock
-if : ; then # TODO
-
-  echo >&2 "successfully acquired lock"
-  # Remove lockdir when the script finishes, or when it receives a signal
-  trap 'rm -rf "$lockdir"' 0    # remove directory when script finishes
+set -C		# noclobber shell option
+if ( echo "$$" > "$lockfile" ) 2> /dev/null ; then
+  echo >&2 "Successfully acquired lock"
+  # Remove lockfile on exit
+  trap 'rm -f "$lockfile"; exit $?' INT TERM EXIT
+  set +C 	# noclobber shell option disable (needed for temp file)
 
   while : ; do
     if [ -c $device ]; then       # if device appeard
@@ -112,17 +113,19 @@ if : ; then # TODO
         else
           exit 0
         fi
-      done;
+      done;	# device still there while loop
+
     else          # if there is no device or it disappeard
       printf "Device '%s' not found. Waiting." "$device"
       until [ -c "$device" ]; do          # still no device
         printf '.'
         sleep "$dev_delay"
       done;
-    fi
-  done;
+    fi 		# if there is device
+
+  done; # infinite while loop
 
 else # unable to lock
-     echo >&2 "cannot acquire lock, giving up on $lock_dir"
-     exit 0
+  echo >&2 "Cannot acquire lock - already locked by $(cat "$lockfile")"
+  exit 0
 fi
