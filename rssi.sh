@@ -64,7 +64,7 @@ print_full_chat: '%s'\n" \
 # set exclusive lock
 set -C		# noclobber shell option
 if ( echo "$$" > "$lockfile" ) 2> /dev/null ; then
-  echo >&2 "Successfully acquired lock"
+  echo >&1 "Successfully acquired lock"
   # Remove lockfile on exit
   trap 'rm -f "$lockfile"; exit $?' INT TERM EXIT
   set +C 	# noclobber shell option disable (needed for temp file)
